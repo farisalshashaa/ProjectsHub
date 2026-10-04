@@ -1,0 +1,829 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyOiagTFQSoYGkLPKfRpj4nX"
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# LAB 1"
+      ],
+      "metadata": {
+        "id": "jXg-0E_0pCJo"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#LAB 1\n",
+        "# ① DEMO v0: النسخة الأولى\n",
+        "# الكود 1\n",
+        "def ask_mishwar(question):\n",
+        "    return f\"Mishwar received: {question}\""
+      ],
+      "metadata": {
+        "id": "UukibZHDmhyN"
+      },
+      "execution_count": 79,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#الكود 2\n",
+        "conversation = ConversationState(max_turns=8)\n",
+        "mishwar = OpenAICompatClient()\n"
+      ],
+      "metadata": {
+        "id": "Z03714IynRuQ"
+      },
+      "execution_count": 80,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ② LLMRequest + LLMResponse\n",
+        "from dataclasses import dataclass, field\n",
+        "from typing import Protocol\n",
+        "\n",
+        "@dataclass\n",
+        "class LLMRequest:\n",
+        "    messages: list[dict]\n",
+        "    model: str\n",
+        "    max_tokens: int = 512\n",
+        "\n",
+        "@dataclass\n",
+        "class LLMResponse:\n",
+        "    text: str\n"
+      ],
+      "metadata": {
+        "id": "1AqnD8MdmtAp"
+      },
+      "execution_count": 81,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ③ LLMClient: الـInterface\n",
+        "\n",
+        "class LLMClient(Protocol):\n",
+        "    def complete(\n",
+        "        self,\n",
+        "        request: LLMRequest\n",
+        "    ) -> LLMResponse:\n",
+        "        ..."
+      ],
+      "metadata": {
+        "id": "cGdNNsB9myEn"
+      },
+      "execution_count": 82,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#④ OpenAI-Compatible Adapter\n",
+        "\n",
+        "class OpenAICompatClient:\n",
+        "    def complete(\n",
+        "        self,\n",
+        "        request: LLMRequest\n",
+        "    ) -> LLMResponse:\n",
+        "        question = request.messages[-1][\"content\"]\n",
+        "        return LLMResponse(\n",
+        "            text=f\"Mishwar response to: {question}\"\n",
+        "        )"
+      ],
+      "metadata": {
+        "id": "auoZLwHKm1hq"
+      },
+      "execution_count": 83,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "  # ⑤ FIRST REQUEST: English\n",
+        "\n",
+        "mishwar = OpenAICompatClient()\n",
+        "\n",
+        "request = LLMRequest(\n",
+        "    messages=[\n",
+        "        {\n",
+        "            \"role\": \"user\",\n",
+        "            \"content\": \"What cars do you have available this weekend?\"\n",
+        "        }\n",
+        "    ],\n",
+        "    model=\"demo-model\"\n",
+        ")\n",
+        "\n",
+        "call_response = mishwar.complete(request)\n",
+        "print(call_response.text)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "6k-buTYsm6QB",
+        "outputId": "47718604-89e2-4a02-8dd0-224c270b50d8"
+      },
+      "execution_count": 84,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Mishwar response to: What cars do you have available this weekend?\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#⑦ CONVERSATION STATE\n",
+        "\n",
+        "@dataclass\n",
+        "class ConversationState:\n",
+        "    max_turns: int = 8\n",
+        "    messages: list[dict] = field(default_factory=list)\n",
+        "\n",
+        "    def add(self, role, content):\n",
+        "        self.messages.append({\n",
+        "            \"role\": role,\n",
+        "            \"content\": content\n",
+        "        })\n",
+        "        self.messages = self.messages[\n",
+        "            -(self.max_turns * 2):\n",
+        "        ]\n",
+        "\n",
+        "    def get_messages(self):\n",
+        "        return self.messages"
+      ],
+      "metadata": {
+        "id": "7BBN8iljm_XO"
+      },
+      "execution_count": 85,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "    #⑧ TEST: Conversation Memory\n",
+        "    conversation = ConversationState(max_turns=8)\n",
+        "\n",
+        "conversation.add(\n",
+        "    \"user\",\n",
+        "    \"My name is Faris.\"\n",
+        ")\n",
+        "\n",
+        "conversation.add(\n",
+        "    \"assistant\",\n",
+        "    \"Nice to meet you, Faris.\"\n",
+        ")\n",
+        "\n",
+        "conversation.add(\n",
+        "    \"user\",\n",
+        "    \"What services can you help me with?\"\n",
+        ")\n",
+        "\n",
+        "conversation.add(\n",
+        "    \"assistant\",\n",
+        "    \"I can help you find a car, check prices, and book or extend a rental.\"\n",
+        ")\n",
+        "\n",
+        "print(conversation.get_messages())"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "bLLIW5IFnHrR",
+        "outputId": "b5430146-3979-4b8f-f3b9-4f55fba55c8c"
+      },
+      "execution_count": 86,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "[{'role': 'user', 'content': 'My name is Faris.'}, {'role': 'assistant', 'content': 'Nice to meet you, Faris.'}, {'role': 'user', 'content': 'What services can you help me with?'}, {'role': 'assistant', 'content': 'I can help you find a car, check prices, and book or extend a rental.'}]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#⑨ MAKE CHAT\n",
+        "# الكود 1\n",
+        "def make_chat(conversation, client, user_message):\n",
+        "    conversation.add(\n",
+        "        \"user\",\n",
+        "        user_message\n",
+        "    )\n",
+        "    request = LLMRequest(\n",
+        "        messages=conversation.get_messages(),\n",
+        "        model=\"demo-model\"\n",
+        "    )\n",
+        "    response = client.complete(request)\n",
+        "    conversation.add(\n",
+        "        \"assistant\",\n",
+        "        response.text\n",
+        "    )\n",
+        "    return response.text"
+      ],
+      "metadata": {
+        "id": "IJMGw1vOnL50"
+      },
+      "execution_count": 87,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#الكود 2\n",
+        "print(\n",
+        "    ask_mishwar(\n",
+        "        \"What cars do you have available this weekend?\"\n",
+        "    )\n",
+        ")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "-v2vAioWmnYP",
+        "outputId": "5674cb78-59f0-49e1-ac1a-b8974e6a472f"
+      },
+      "execution_count": 88,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Mishwar received: What cars do you have available this weekend?\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#الكود 3\n",
+        "print(\n",
+        "    make_chat(\n",
+        "        conversation,\n",
+        "        mishwar,\n",
+        "        \"My name is Faris.\"\n",
+        "    )\n",
+        ")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "i7FHpUq9oN8w",
+        "outputId": "f14dc2ad-b1b4-4c06-f2e1-f265538ff9d6"
+      },
+      "execution_count": 89,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Mishwar response to: My name is Faris.\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#الكود 4\n",
+        "print(\n",
+        "    make_chat(\n",
+        "        conversation,\n",
+        "        mishwar,\n",
+        "        \"I need an SUV from Friday to Sunday.\"\n",
+        "    )\n",
+        ")\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "nNbo7R7oniLu",
+        "outputId": "88d6695f-6f4c-42e5-8c4a-8f5281e2ab6f"
+      },
+      "execution_count": 90,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Mishwar response to: I need an SUV from Friday to Sunday.\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#⑩ WINDOW = 8 TURNS\n",
+        "conversation = ConversationState(max_turns=8)\n",
+        "\n",
+        "for i in range(1, 10):\n",
+        "    conversation.add(\n",
+        "        \"user\",\n",
+        "        f\"Message {i}\"\n",
+        "    )\n",
+        "    conversation.add(\n",
+        "        \"assistant\",\n",
+        "        f\"Response {i}\"\n",
+        "    )\n",
+        "\n",
+        "print(conversation.get_messages())"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "ViF0Sw3AoPbF",
+        "outputId": "d555d4a3-2331-49e7-cada-34fa8f487469"
+      },
+      "execution_count": 91,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "[{'role': 'user', 'content': 'Message 2'}, {'role': 'assistant', 'content': 'Response 2'}, {'role': 'user', 'content': 'Message 3'}, {'role': 'assistant', 'content': 'Response 3'}, {'role': 'user', 'content': 'Message 4'}, {'role': 'assistant', 'content': 'Response 4'}, {'role': 'user', 'content': 'Message 5'}, {'role': 'assistant', 'content': 'Response 5'}, {'role': 'user', 'content': 'Message 6'}, {'role': 'assistant', 'content': 'Response 6'}, {'role': 'user', 'content': 'Message 7'}, {'role': 'assistant', 'content': 'Response 7'}, {'role': 'user', 'content': 'Message 8'}, {'role': 'assistant', 'content': 'Response 8'}, {'role': 'user', 'content': 'Message 9'}, {'role': 'assistant', 'content': 'Response 9'}]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#⑪ DOCUMENTATION: Context Budget\n",
+        "from pathlib import Path\n",
+        "\n",
+        "Path(\"docs\").mkdir(exist_ok=True)\n",
+        "\n",
+        "Path(\"docs/context_budget.md\").write_text(\n",
+        "\"\"\"# Mishwar Context Budget\n",
+        "Total Context Budget: 16K tokens\n",
+        "- System Prompt: 2K\n",
+        "- Conversation History: 8K\n",
+        "- Tools: 2K\n",
+        "- Output: 4K\n",
+        "\n",
+        "The conversation history is windowed to 8 turns.\n",
+        "\"\"\",\n",
+        "encoding=\"utf-8\"\n",
+        ")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "P-ztuf_ooPdx",
+        "outputId": "9e1ffabf-8616-4bf3-ae0b-44a9799eccce"
+      },
+      "execution_count": 92,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "180"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 92
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# LAB 2"
+      ],
+      "metadata": {
+        "id": "kCaW74whpPTx"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#LAB 2\n",
+        "# ① OpenAICompatClient (with name)\n",
+        "# الكود 1\n",
+        "from dataclasses import dataclass\n",
+        "\n",
+        "@dataclass\n",
+        "class LLMRequest:\n",
+        "    messages: list[dict]\n",
+        "    model: str\n",
+        "    max_tokens: int = 512\n",
+        "\n",
+        "@dataclass\n",
+        "class LLMResponse:\n",
+        "    text: str\n",
+        "\n",
+        "class OpenAICompatClient:\n",
+        "    def __init__(self, name=\"OpenAI\"):\n",
+        "        self.name = name\n",
+        "\n",
+        "    def complete(\n",
+        "        self,\n",
+        "        request: LLMRequest\n",
+        "    ) -> LLMResponse:\n",
+        "        question = request.messages[-1][\"content\"]\n",
+        "        return LLMResponse(\n",
+        "            text=f\"{self.name} response to: {question}\"\n",
+        "        )"
+      ],
+      "metadata": {
+        "id": "y2JQ48B0jdi2"
+      },
+      "execution_count": 93,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# الكود 2\n",
+        "mishwar = OpenAICompatClient()\n",
+        "\n",
+        "request = LLMRequest(\n",
+        "    messages=[\n",
+        "        {\n",
+        "            \"role\": \"user\",\n",
+        "            \"content\": \"ما هي السيارات المتاحة للإيجار هذا الأسبوع؟\"\n",
+        "        }\n",
+        "    ],\n",
+        "    model=\"demo-model\"\n",
+        ")\n",
+        "\n",
+        "response = mishwar.complete(request)\n",
+        "print(response.text)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "bn07AzJnjekk",
+        "outputId": "7b4d4703-15e2-48d1-ece9-4811e6b31cda"
+      },
+      "execution_count": 94,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "OpenAI response to: ما هي السيارات المتاحة للإيجار هذا الأسبوع؟\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ② AnthropicClient: الـAdapter الثاني\n",
+        "# الكود 1\n",
+        "class AnthropicClient:\n",
+        "    def __init__(self, name=\"Anthropic\"):\n",
+        "        self.name = name\n",
+        "\n",
+        "    def build_payload(self, request: LLMRequest):\n",
+        "        system = \"\"\n",
+        "        turns = []\n",
+        "        for message in request.messages:\n",
+        "            if message[\"role\"] == \"system\":\n",
+        "                system = message[\"content\"]\n",
+        "            else:\n",
+        "                turns.append(message)\n",
+        "        return {\n",
+        "            \"model\": request.model,\n",
+        "            \"system\": system,\n",
+        "            \"max_tokens\": request.max_tokens,\n",
+        "            \"messages\": turns\n",
+        "        }\n",
+        "\n",
+        "    def complete(\n",
+        "        self,\n",
+        "        request: LLMRequest\n",
+        "    ) -> LLMResponse:\n",
+        "        payload = self.build_payload(request)\n",
+        "        question = payload[\"messages\"][-1][\"content\"]\n",
+        "        return LLMResponse(\n",
+        "            text=f\"{self.name} response to: {question}\"\n",
+        "        )"
+      ],
+      "metadata": {
+        "id": "o30o2LRfjizE"
+      },
+      "execution_count": 95,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "\n",
+        "# الكود 2\n",
+        "request = LLMRequest(\n",
+        "    messages=[\n",
+        "        {\n",
+        "            \"role\": \"system\",\n",
+        "            \"content\": \"You are Mishwar, a car rental assistant.\"\n",
+        "        },\n",
+        "        {\n",
+        "            \"role\": \"user\",\n",
+        "            \"content\": \"ما هي السيارات المتاحة للإيجار هذا الأسبوع؟\"\n",
+        "        }\n",
+        "    ],\n",
+        "    model=\"demo-model\"\n",
+        ")\n",
+        "\n",
+        "anthropic = AnthropicClient()\n",
+        "print(anthropic.build_payload(request))"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "xoiglfHhjonv",
+        "outputId": "3c162583-f55c-46bb-ceb5-d59dcb041747"
+      },
+      "execution_count": 96,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "{'model': 'demo-model', 'system': 'You are Mishwar, a car rental assistant.', 'max_tokens': 512, 'messages': [{'role': 'user', 'content': 'ما هي السيارات المتاحة للإيجار هذا الأسبوع؟'}]}\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ③ نفس الطلب على المزوّدين\n",
+        "clients = [\n",
+        "    OpenAICompatClient(),\n",
+        "    AnthropicClient()\n",
+        "]\n",
+        "\n",
+        "for client in clients:\n",
+        "    response = client.complete(request)\n",
+        "    print(response.text)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "QG9TMEjwjrzj",
+        "outputId": "70b93311-87a6-4ce5-9c7d-b019079d2643"
+      },
+      "execution_count": 97,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "OpenAI response to: ما هي السيارات المتاحة للإيجار هذا الأسبوع؟\n",
+            "Anthropic response to: ما هي السيارات المتاحة للإيجار هذا الأسبوع؟\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ④ إضافة vLLM: النموذج المفتوح\n",
+        "routes = {\n",
+        "    \"primary\": AnthropicClient(),\n",
+        "    \"cheap\": OpenAICompatClient(),\n",
+        "    \"vllm\": OpenAICompatClient(name=\"vLLM\")\n",
+        "}\n",
+        "\n",
+        "for route, client in routes.items():\n",
+        "    response = client.complete(request)\n",
+        "    print(route, \"→\", response.text)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "SMLPFFtujwSE",
+        "outputId": "12d1172a-c5c0-4734-d8fb-442a94b69622"
+      },
+      "execution_count": 98,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "primary → Anthropic response to: ما هي السيارات المتاحة للإيجار هذا الأسبوع؟\n",
+            "cheap → OpenAI response to: ما هي السيارات المتاحة للإيجار هذا الأسبوع؟\n",
+            "vllm → vLLM response to: ما هي السيارات المتاحة للإيجار هذا الأسبوع؟\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ⑤ الـStreaming وقياس TTFT\n",
+        "import time\n",
+        "\n",
+        "def stream_chat(client, request):\n",
+        "    response = client.complete(request)\n",
+        "    words = response.text.split()\n",
+        "\n",
+        "    start = time.time()\n",
+        "    ttft = None\n",
+        "    time.sleep(0.4)\n",
+        "\n",
+        "    for word in words:\n",
+        "        if ttft is None:\n",
+        "            ttft = time.time() - start\n",
+        "        print(word, end=\" \", flush=True)\n",
+        "        time.sleep(0.3)\n",
+        "\n",
+        "    total = time.time() - start\n",
+        "    print()\n",
+        "    print(\"TTFT :\", round(ttft, 1), \"seconds\")\n",
+        "    print(\"Total:\", round(total, 1), \"seconds\")\n",
+        "\n",
+        "stream_chat(routes[\"primary\"], request)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "fU6Q_ueUj2Jr",
+        "outputId": "b64c36c6-aa02-4200-96e9-e685056bfa20"
+      },
+      "execution_count": 99,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Anthropic response to: ما هي السيارات المتاحة للإيجار هذا الأسبوع؟ \n",
+            "TTFT : 0.4 seconds\n",
+            "Total: 3.4 seconds\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ⑥ الـRetry والـFallback\n",
+        "# الكود 1\n",
+        "class BrokenClient:\n",
+        "    def __init__(self, name=\"Anthropic\"):\n",
+        "        self.name = name\n",
+        "\n",
+        "    def complete(\n",
+        "        self,\n",
+        "        request: LLMRequest\n",
+        "    ) -> LLMResponse:\n",
+        "        raise Exception(\"429 Rate limit\")\n",
+        "\n",
+        "class ResilientClient:\n",
+        "    def __init__(self, primary, fallback, max_attempts=3):\n",
+        "        self.primary = primary\n",
+        "        self.fallback = fallback\n",
+        "        self.max_attempts = max_attempts\n",
+        "\n",
+        "    def complete(\n",
+        "        self,\n",
+        "        request: LLMRequest\n",
+        "    ) -> LLMResponse:\n",
+        "        for attempt in range(1, self.max_attempts + 1):\n",
+        "            try:\n",
+        "                return self.primary.complete(request)\n",
+        "            except Exception as error:\n",
+        "                print(\"Retry\", attempt, \"→\", error)\n",
+        "                time.sleep(1)\n",
+        "\n",
+        "        print(\"Fallback → vllm\")\n",
+        "        return self.fallback.complete(request)"
+      ],
+      "metadata": {
+        "id": "4bZr9dtGj6e7"
+      },
+      "execution_count": 100,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# الكود 2\n",
+        "mishwar = ResilientClient(\n",
+        "    primary=BrokenClient(),\n",
+        "    fallback=routes[\"vllm\"]\n",
+        ")\n",
+        "\n",
+        "response = mishwar.complete(request)\n",
+        "print(response.text)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "9Wu30eNwj-sf",
+        "outputId": "c21cef37-38fb-4036-ed0c-b9d1e942ad4c"
+      },
+      "execution_count": 101,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Retry 1 → 429 Rate limit\n",
+            "Retry 2 → 429 Rate limit\n",
+            "Retry 3 → 429 Rate limit\n",
+            "Fallback → vllm\n",
+            "vLLM response to: ما هي السيارات المتاحة للإيجار هذا الأسبوع؟\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ⑦ الـBenchmark\n",
+        "delays = {\n",
+        "    \"primary\": 1.0,\n",
+        "    \"cheap\": 0.6,\n",
+        "    \"vllm\": 1.4\n",
+        "}\n",
+        "\n",
+        "questions = [\n",
+        "    \"ما هي السيارات المتاحة للإيجار هذا الأسبوع؟\",\n",
+        "    \"How much is an SUV for 3 days?\",\n",
+        "    \"كم سعر تأجير الكامري لمدة يومين؟\"\n",
+        "]\n",
+        "\n",
+        "for route, client in routes.items():\n",
+        "    start = time.time()\n",
+        "\n",
+        "    for question in questions:\n",
+        "        request = LLMRequest(\n",
+        "            messages=[\n",
+        "                {\n",
+        "                    \"role\": \"user\",\n",
+        "                    \"content\": question\n",
+        "                }\n",
+        "            ],\n",
+        "            model=\"demo-model\"\n",
+        "        )\n",
+        "        time.sleep(delays[route])\n",
+        "        client.complete(request)\n",
+        "\n",
+        "    average = (time.time() - start) / len(questions)\n",
+        "    print(route, \"| average:\", round(average, 1), \"seconds\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "iJhF60cWkDN7",
+        "outputId": "bed3ba3b-f269-4cb8-88d0-1139efd02331"
+      },
+      "execution_count": 102,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "primary | average: 1.0 seconds\n",
+            "cheap | average: 0.6 seconds\n",
+            "vllm | average: 1.4 seconds\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
